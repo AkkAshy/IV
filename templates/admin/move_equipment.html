@@ -1,0 +1,19 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+    <h1>Перемещение оборудования</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <label for="to_room">Выберите кабинет для перемещения:</label>
+        <select name="to_room" id="to_room">
+            {% for room in rooms %}
+                <option value="{{ room.id }}">{{ room.number }}</option>
+            {% endfor %}
+        </select>
+        <ul>
+            {% for equipment in equipments %}
+                <li>{{ equipment.name }} - {{ equipment.room.number }}</li>
+            {% endfor %}
+        </ul>
+        <button type="submit" name="apply">Переместить оборудование</button>
+    </form>
+{% endblock %}

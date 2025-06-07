@@ -1,0 +1,9 @@
+{% extends 'custom_admin/base.html' %}
+{% block title %}Ошибка{% endblock %}
+{% block content %}
+    <h1>Ошибка</h1>
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    <a href="{% url 'custom_admin:dashboard' %}" class="btn btn-secondary">Вернуться на главную</a>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'custom_admin/base.html' %}
+
+{% block content %}
+<h1>Выход из системы</h1>
+<p>Вы уверены, что хотите выйти из аккаунта <strong>{{ user.username|default:"Гость" }}</strong>?</p>
+<form id="logout-form" method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Подтвердить выход</button>
+    <a href="{% url 'admin-dashboard' %}" class="btn btn-secondary">Отмена</a>
+</form>
+<script>
+    document.getElementById('logout-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        console.log('Логаут: Удаление токенов');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '{% url 'admin-login' %}';
+    });
+</script>
+{% endblock %}

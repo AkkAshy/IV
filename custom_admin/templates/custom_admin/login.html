@@ -1,0 +1,32 @@
+{% extends 'custom_admin/base.html' %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+<h1>Вход в админ-панель</h1>
+{% if form.errors %}
+    <div class="alert alert-danger">
+        <strong>Ошибка!</strong> Неверный логин или пароль.
+    </div>
+{% endif %}
+<form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label for="{{ form.username.id_for_label }}" class="form-label">Логин</label>
+        {{ form.username }}
+        {% if form.username.errors %}
+            <div class="invalid-feedback d-block">
+                {{ form.username.errors }}
+            </div>
+        {% endif %}
+    </div>
+    <div class="mb-3">
+        <label for="{{ form.password.id_for_label }}" class="form-label">Пароль</label>
+        {{ form.password }}
+        {% if form.password.errors %}
+            <div class="invalid-feedback d-block">
+                {{ form.password.errors }}
+            </div>
+        {% endif %}
+    </div>
+    <button type="submit" class="btn btn-primary">Войти</button>
+</form>
+{% endblock %}

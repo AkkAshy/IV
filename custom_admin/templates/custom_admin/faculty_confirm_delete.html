@@ -1,0 +1,28 @@
+{% extends 'custom_admin/base.html' %}
+{% block title %}{% if form.instance.pk %}Редактирование факультета{% else %}Создание факультета{% endif %}{% endblock %}
+{% block content %}
+    <h1>{% if form.instance.pk %}Редактирование факультета{% else %}Создание факультета{% endif %}</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="{{ form.building.id_for_label }}" class="form-label">Корпус</label>
+            {{ form.building }}
+            {{ form.building.errors }}
+        </div>
+        <div class="mb-3">
+            <label for="{{ form.name.id_for_label }}" class="form-label">Название</label>
+            {{ form.name }}
+            {{ form.name.errors }}
+        </div>
+        <div class="mb-3">
+            <label for="{{ form.photo.id_for_label }}" class="form-label">Фото</label>
+            {{ form.photo }}
+            {{ form.photo.errors }}
+            {% if form.instance.photo %}
+                <p>Текущее фото: <img src="{{ form.instance.photo.url }}" alt="Faculty photo" style="max-width: 200px;"></p>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <a href="{% url 'custom_admin:faculty_list' %}" class="btn btn-secondary">Отмена</a>
+    </form>
+{% endblock %}

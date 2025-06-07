@@ -1,0 +1,108 @@
+{% extends 'custom_admin/base.html' %}
+{% block title %}Список кабинетов{% endblock %}
+{% block content %}
+<h1>Список кабинетов</h1>
+<div class="mb-3">
+    <a href="{% url 'custom_admin:room_create' %}" class="btn btn-primary">Добавить кабинет</a>
+</div>
+<form method="get" class="mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <select name="university" class="form-control" onchange="this.form.submit()">
+                <option value="">Все университеты</option>
+                {% for university in universities %}
+                    <option value="{{ university.id }}" {% if request.GET.university == university.id|stringformat:"s" %}selected{% endif %}>
+                        {{ university.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select name="building" class="form-control" onchange="this.form.submit()">
+                <option value="">Все корпуса</option>
+                {% for building in buildings %}
+                    <option value="{{ building.id }}" {% if request.GET.building == building.id|stringformat:"s" %}selected{% endif %}>
+                        {{ building.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select name="floor" class="form-control" onchange="this.form.submit()">
+                <option value="">Все этажи</option>
+                {% for floor in floors %}
+                    <option value="{{ floor.id }}" {% if request.GET.floor == floor.id|stringformat:"s" %}selected{% endif %}>
+                        {{ floor.number }} — {{ floor.building.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</form>
+{% if rooms %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Номер</th>
+                <th>Название</th>
+                <th>Этаж</th>
+                <th>Специальный</th>
+                <th>Фото</th>
+                <th>QR-код</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for room in rooms %}
+                <tr>
+                    <td>{{ room.number }}</td>
+                    <td>{{ room.name|default:"—" }}</td>
+                    <td>{{ room.floor.number }} — {{ room.floor.building.name }}</td>
+                    <td>{{ room.is_special|yesno:"Да,Нет" }}</td>
+                    <td>
+                        {% if room.photo %}
+                            <img src="{{ room.photo.url }}" alt="Фото кабинета" style="max-width: 50px;">
+                        {% else %}
+                            Нет фото
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if room.qr_code %}
+                            <img src="{{ room.qr_code.url }}" alt="QR-код" style="max-width: 50px;">
+                        {% else %}
+                            Нет QR-кода
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'custom_admin:room_edit' room.pk %}" class="btn btn-sm btn-warning">Редактировать</a>
+                        <a href="{% url 'custom_admin:room_delete' room.pk %}" class="btn btn-sm btn-danger">Удалить</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if is_paginated %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.university %}&university={{ request.GET.university }}{% endif %}{% if request.GET.building %}&building={{ request.GET.building }}{% endif %}{% if request.GET.floor %}&floor={{ request.GET.floor }}{% endif %}">Предыдущая</a>
+                    </li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.university %}&university={{ request.GET.university }}{% endif %}{% if request.GET.building %}&building={{ request.GET.building }}{% endif %}{% if request.GET.floor %}&floor={{ request.GET.floor }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.university %}&university={{ request.GET.university }}{% endif %}{% if request.GET.building %}&building={{ request.GET.building }}{% endif %}{% if request.GET.floor %}&floor={{ request.GET.floor }}{% endif %}">Следующая</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% else %}
+    <p>Кабинеты отсутствуют.</p>
+{% endif %}
+{% endblock %}

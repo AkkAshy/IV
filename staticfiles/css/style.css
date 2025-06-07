@@ -1,0 +1,136 @@
+:root {
+    --primary-blue: #007BFF;
+    --dark-blue: #0056b3;
+    --light-blue: #e6f0fa;
+    --text-dark: #333;
+    --bg-light: #f8f9fa;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    font-family: 'Arial', sans-serif;
+}
+
+.navbar {
+    background-color: var(--primary-blue) !important;
+}
+
+.navbar-brand, .nav-link {
+    color: white !important;
+}
+
+.nav-link:hover {
+    color: var(--light-blue) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+
+.btn-primary:hover {
+    background-color: var(--dark-blue);
+    border-color: var(--dark-blue);
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #218838;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #e0a800;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #5a6268;
+}
+
+.table {
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table thead {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.table tbody tr:hover {
+    background-color: var(--light-blue);
+}
+
+.card {
+    border: 1px solid var(--primary-blue);
+    border-radius: 8px;
+}
+
+.card-header {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.form-control, .form-select {
+    border-color: var(--primary-blue);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--dark-blue);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.alert-info {
+    background-color: var(--light-blue);
+    border-color: var(--primary-blue);
+    color: var(--text-dark);
+}
+
+.container {
+    max-width: 1200px;
+}
+
+h1 {
+    color: var(--primary-blue);
+    margin-bottom: 1.5rem;
+}
+
+img {
+    border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+    .navbar-nav {
+        background-color: var(--primary-blue);
+        padding: 10px;
+    }
+}

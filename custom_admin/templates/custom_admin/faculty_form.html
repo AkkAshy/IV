@@ -1,0 +1,89 @@
+{% extends 'custom_admin/base.html' %}
+{% block title %}{% if form.instance.pk %}Редактирование факультета{% else %}Создание факультета{% endif %}{% endblock %}
+{% block content %}
+    <h1>{% if form.instance.pk %}Редактирование факультета{% else %}Создание факультета{% endif %}</h1>
+    
+    <form method="post" enctype="multipart/form-data" id="faculty-form">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="{{ form.building.id_for_label }}" class="form-label">Корпус</label>
+            {{ form.building }}
+            {{ form.building.errors }}
+        </div>
+        <div class="mb-3">
+            <label for="{{ form.floor.id_for_label }}" class="form-label">Этаж</label>
+            {{ form.floor }}
+            {{ form.floor.errors }}
+        </div>
+        <div class="mb-3">
+            <label for="{{ form.name.id_for_label }}" class="form-label">Название факультета</label>
+            {{ form.name }}
+            {{ form.name.errors }}
+        </div>
+        <div class="mb-3">
+            <label for="{{ form.photo.id_for_label }}" class="form-label">Фото факультета</label>
+            {{ form.photo }}
+            {{ form.photo.errors }}
+        </div>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <a href="{% url 'custom_admin:faculty_list' %}" class="btn btn-secondary">Отмена</a>
+    </form>
+
+    <script>
+        // Получаем ID селекторов из формы
+        const buildingSelectId = "{{ form.building.id_for_label }}";
+        const floorSelectId = "{{ form.floor.id_for_label }}";
+        
+        // Функция для загрузки этажей при изменении корпуса
+        function loadFloors() {
+            const buildingSelect = document.getElementById(buildingSelectId);
+            const floorSelect = document.getElementById(floorSelectId);
+            
+            const buildingId = buildingSelect.value;
+            
+            // Если корпус не выбран, очищаем список этажей
+            if (!buildingId) {
+                floorSelect.innerHTML = '<option value="">---------</option>';
+                return;
+            }
+            
+            // Выполняем AJAX-запрос для получения этажей
+            fetch(`{% url 'custom_admin:ajax_load_floors' %}?building=${buildingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Сохраняем текущее выбранное значение
+                    const currentFloor = floorSelect.value;
+                    
+                    // Очищаем текущий список
+                    floorSelect.innerHTML = '<option value="">---------</option>';
+                    
+                    // Заполняем списком этажей
+                    data.forEach(floor => {
+                        const option = document.createElement('option');
+                        option.value = floor.id;
+                        option.textContent = floor.number;
+                        
+                        // Восстанавливаем выбранное значение, если оно существует
+                        if (floor.id == currentFloor) {
+                            option.selected = true;
+                        }
+                        
+                        floorSelect.appendChild(option);
+                    });
+                });
+        }
+        
+        // Вешаем обработчик события на изменение корпуса
+        document.addEventListener('DOMContentLoaded', function() {
+            const buildingSelect = document.getElementById(buildingSelectId);
+            
+            // Добавляем обработчик события
+            buildingSelect.addEventListener('change', loadFloors);
+            
+            // Вызываем функцию при загрузке страницы, если корпус уже выбран
+            if (buildingSelect.value) {
+                loadFloors();
+            }
+        });
+    </script>
+{% endblock %}

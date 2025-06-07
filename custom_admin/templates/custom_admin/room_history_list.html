@@ -1,0 +1,45 @@
+<!-- custom_admin/templates/custom_admin/room_history_list.html -->
+{% extends 'custom_admin/base.html' %}
+
+{% block content %}
+<h1>История кабинетов</h1>
+<form method="get" class="mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <select name="room" class="form-select">
+                <option value="">Все кабинеты</option>
+                {% for room in rooms %}
+                <option value="{{ room.id }}" {% if request.GET.room == room.id|stringformat:"s" %}selected{% endif %}>{{ room }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary">Фильтровать</button>
+        </div>
+    </div>
+</form>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Кабинет</th>
+            <th>Действие</th>
+            <th>Дата и время</th>
+            <th>Описание</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for history in history_list %}
+        <tr>
+            <td>{{ history.room }}</td>
+            <td>{{ history.action }}</td>
+            <td>{{ history.timestamp|date:"d.m.Y H:i" }}</td>
+            <td>{{ history.description|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4">История не найдена.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

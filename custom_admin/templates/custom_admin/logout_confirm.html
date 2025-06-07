@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Выход</h2>
+<form method="POST" action="{% url 'admin-logout' %}">
+    {% csrf_token %}
+    <input type="hidden" name="refresh_token" value="{{ refresh_token }}">
+    <p>Вы уверены, что хотите выйти?</p>
+    <button type="submit">Выйти</button>
+</form>
+<a href="{% url 'admin-dashboard' %}">Отмена</a>
+{% endblock %}

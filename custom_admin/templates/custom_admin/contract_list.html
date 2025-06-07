@@ -1,0 +1,32 @@
+{% extends 'custom_admin/base.html' %}
+
+{% block content %}
+<h1>Договоры</h1>
+<a href="{% url 'admin-contract-create' %}" class="btn btn-success mb-3">Добавить договор</a>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Номер</th>
+            <th>Дата загрузки</th>
+            <th>Файл</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for contract in contract_list %}
+        <tr>
+            <td>{{ contract.number }}</td>
+            <td>{{ contract.created_at|date:"d.m.Y" }}</td>
+            <td><a href="{{ contract.file.url }}" target="_blank">Скачать</a></td>
+            <td>
+                <a href="{% url 'admin-contract-edit' contract.pk %}" class="btn btn-sm btn-warning">Редактировать</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4">Договоры не найдены.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

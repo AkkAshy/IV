@@ -1,0 +1,76 @@
+{% extends 'custom_admin/base.html' %}
+{% block title %}Кафедры{% endblock %}
+{% block content %}
+    <h1>Список кафедр</h1>
+    <a href="{% url 'custom_admin:department_create' %}" class="btn btn-primary mb-3">Добавить кафедру</a>
+
+    <!-- Фильтры -->
+    <form method="get" class="mb-3">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="faculty" class="form-label">Факультет</label>
+                <select name="faculty" id="faculty" class="form-select">
+                    <option value="">Все факультеты</option>
+                    {% for faculty in faculties %}
+                        <option value="{{ faculty.id }}" {% if request.GET.faculty == faculty.id|stringformat:"s" %}selected{% endif %}>
+                            {{ faculty.name }} — {{ faculty.building.university.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-secondary mt-2">Фильтровать</button>
+    </form>
+
+    <!-- Таблица -->
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Факультет</th>
+                <th>Университет</th>
+                <th>Описание</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for department in departments %}
+                <tr>
+                    <td>{{ department.name }}</td>
+                    <td>{{ department.faculty.name }}</td>
+                    <td>{{ department.faculty.building.university.name }}</td>
+                    <td>{{ department.description|truncatechars:50|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'custom_admin:department_edit' department.pk %}" class="btn btn-sm btn-warning">Редактировать</a>
+                        <a href="{% url 'custom_admin:department_delete' department.pk %}" class="btn btn-sm btn-danger">Удалить</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5">Кафедры не найдены.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Пагинация -->
+    {% if is_paginated %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Назад</a>
+                    </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">Страница {{ page_obj.number }} из {{ paginator.num_pages }}</span>
+                </li>
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Вперёд</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endblock %}
