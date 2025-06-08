@@ -5,7 +5,8 @@ from .models import (EquipmentType, Equipment, ComputerDetails,
                      RouterChar, ExtenderChar, TVChar, PrinterChar,
                      NotebookChar, NotebookSpecification, MonoblokChar, MonoblokSpecification,
                      ProjectorChar, ProjectorSpecification, WhiteboardChar, WhiteboardSpecification,
-                     Repair, Disposal, Disk, DiskSpecification, MonitorChar, MonitorSpecification
+                     Repair, Disposal, Disk, DiskSpecification, MonitorChar, MonitorSpecification,
+                     GPU, GPUSpecification
                      )
 from datetime import datetime
 from university.models import Room
@@ -99,6 +100,19 @@ class ComputerDetailsSerializer(serializers.ModelSerializer):
         ]
 
 
+class GPUSpecificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GPUSpecification
+        exclude = ('computer_specification', 'notebook_specification', 'monoblok_specification')
+
+
+class GPUSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GPU
+        fields = '__all__'
+
+
+
 class DiskSpecificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiskSpecification
@@ -111,34 +125,36 @@ class DiskSerializer(serializers.ModelSerializer):
 
 class ComputerSpecificationSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
-    author_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        write_only=True,
-        required=False,
-        allow_null=True,
-        source='author'
-    )
     disk_specifications = DiskSpecificationSerializer(many=True, required=False)
+    gpu_specifications = GPUSpecificationSerializer(many=True, required=False)  # ДОБАВЛЕНО
 
     class Meta:
         model = ComputerSpecification
         fields = [
             'id', 'cpu', 'ram', 'has_keyboard', 'has_mouse',
-            'created_at', 'uid', 'author', 'author_id', 'disk_specifications'
+            'monitor_size', 'created_at', 'uid', 'author', 'author_id', 
+            'disk_specifications', 'gpu_specifications'  # ДОБАВЛЕНО
         ]
         read_only_fields = ['created_at', 'uid', 'author']
 
     def create(self, validated_data):
         disks_data = validated_data.pop('disk_specifications', [])
+        gpus_data = validated_data.pop('gpu_specifications', [])  # ДОБАВЛЕНО
         specification = ComputerSpecification.objects.create(**validated_data)
+        
         for disk_data in disks_data:
             DiskSpecification.objects.create(computer_specification=specification, **disk_data)
+        
+        for gpu_data in gpus_data:  # ДОБАВЛЕНО
+            GPUSpecification.objects.create(computer_specification=specification, **gpu_data)
+            
         return specification
 
     def update(self, instance, validated_data):
         disks_data = validated_data.pop('disk_specifications', None)
+        gpus_data = validated_data.pop('gpu_specifications', None)  # ДОБАВЛЕНО
 
-        # Update ComputerSpecification instance
+        # Update specification instance
         instance.cpu = validated_data.get('cpu', instance.cpu)
         instance.ram = validated_data.get('ram', instance.ram)
         instance.has_keyboard = validated_data.get('has_keyboard', instance.has_keyboard)
@@ -151,7 +167,15 @@ class ComputerSpecificationSerializer(serializers.ModelSerializer):
             for disk_data in disks_data:
                 DiskSpecification.objects.create(computer_specification=instance, **disk_data)
 
+        if gpus_data is not None:  # ДОБАВЛЕНО
+            instance.gpu_specifications.all().delete()
+            for gpu_data in gpus_data:
+                GPUSpecification.objects.create(computer_specification=instance, **gpu_data)
+
         return instance
+    
+
+
 class PrinterCharSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrinterChar
@@ -250,38 +274,46 @@ class NotebookCharSerializer(serializers.ModelSerializer):
 class NotebookSpecificationSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     disk_specifications = DiskSpecificationSerializer(many=True, required=False)
-
-    def get_queryset(self):
-        user = self.context['request'].user
-        if user.is_authenticated:
-            return NotebookSpecification.objects.filter(author=user)
-        return NotebookSpecification.objects.none()
+    gpu_specifications = GPUSpecificationSerializer(many=True, required=False)  # ДОБАВЛЕНО
 
     class Meta:
         model = NotebookSpecification
-        fields = ['id', 'cpu', 'ram', 'monitor_size', 'author', 'created_at', 'disk_specifications']
+        fields = ['id', 'cpu', 'ram', 'monitor_size', 'author', 'created_at', 
+                 'disk_specifications', 'gpu_specifications']  # ДОБАВЛЕНО
 
     def create(self, validated_data):
-       disks_data = validated_data.pop('disk_specifications', [])
-       specification = NotebookSpecification.objects.create(**validated_data)
-       for disk_data in disks_data:
-           DiskSpecification.objects.create(notebook_specification=specification, **disk_data)
-       return specification
+        disks_data = validated_data.pop('disk_specifications', [])
+        gpus_data = validated_data.pop('gpu_specifications', [])  # ДОБАВЛЕНО
+        specification = NotebookSpecification.objects.create(**validated_data)
+        
+        for disk_data in disks_data:
+            DiskSpecification.objects.create(notebook_specification=specification, **disk_data)
+        
+        for gpu_data in gpus_data:  # ДОБАВЛЕНО
+            GPUSpecification.objects.create(notebook_specification=specification, **gpu_data)
+            
+        return specification
 
     def update(self, instance, validated_data):
-       disks_data = validated_data.pop('disk_specifications', None)
+        disks_data = validated_data.pop('disk_specifications', None)
+        gpus_data = validated_data.pop('gpu_specifications', None)  # ДОБАВЛЕНО
 
-       instance.cpu = validated_data.get('cpu', instance.cpu)
-       instance.ram = validated_data.get('ram', instance.ram)
-       instance.monitor_size = validated_data.get('monitor_size', instance.monitor_size)
-       instance.save()
+        instance.cpu = validated_data.get('cpu', instance.cpu)
+        instance.ram = validated_data.get('ram', instance.ram)
+        instance.monitor_size = validated_data.get('monitor_size', instance.monitor_size)
+        instance.save()
 
-       if disks_data is not None:
-           instance.disk_specifications.all().delete()
-           for disk_data in disks_data:
-               DiskSpecification.objects.create(notebook_specification=instance, **disk_data)
+        if disks_data is not None:
+            instance.disk_specifications.all().delete()
+            for disk_data in disks_data:
+                DiskSpecification.objects.create(notebook_specification=instance, **disk_data)
 
-       return instance
+        if gpus_data is not None:  # ДОБАВЛЕНО
+            instance.gpu_specifications.all().delete()
+            for gpu_data in gpus_data:
+                GPUSpecification.objects.create(notebook_specification=instance, **gpu_data)
+
+        return instance
 
 class MonoblokCharSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
@@ -294,40 +326,48 @@ class MonoblokCharSerializer(serializers.ModelSerializer):
 class MonoblokSpecificationSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     disk_specifications = DiskSpecificationSerializer(many=True, required=False)
-
-    def get_queryset(self):
-        user = self.context['request'].user
-        if user.is_authenticated:
-            return MonoblokSpecification.objects.filter(author=user)
-        return MonoblokSpecification.objects.none()
+    gpu_specifications = GPUSpecificationSerializer(many=True, required=False)  # ДОБАВЛЕНО
 
     class Meta:
         model = MonoblokSpecification
-        fields = ['id', 'cpu', 'ram', 'has_keyboard', 'has_mouse', 'monitor_size', 'author', 'created_at', 'disk_specifications']
+        fields = ['id', 'cpu', 'ram', 'has_keyboard', 'has_mouse', 'monitor_size', 
+                 'author', 'created_at', 'disk_specifications', 'gpu_specifications']  # ДОБАВЛЕНО
 
     def create(self, validated_data):
-       disks_data = validated_data.pop('disk_specifications', [])
-       specification = MonoblokSpecification.objects.create(**validated_data)
-       for disk_data in disks_data:
-           DiskSpecification.objects.create(monoblok_specification=specification, **disk_data)
-       return specification
+        disks_data = validated_data.pop('disk_specifications', [])
+        gpus_data = validated_data.pop('gpu_specifications', [])  # ДОБАВЛЕНО
+        specification = MonoblokSpecification.objects.create(**validated_data)
+        
+        for disk_data in disks_data:
+            DiskSpecification.objects.create(monoblok_specification=specification, **disk_data)
+        
+        for gpu_data in gpus_data:  # ДОБАВЛЕНО
+            GPUSpecification.objects.create(monoblok_specification=specification, **gpu_data)
+            
+        return specification
 
     def update(self, instance, validated_data):
-       disks_data = validated_data.pop('disk_specifications', None)
+        disks_data = validated_data.pop('disk_specifications', None)
+        gpus_data = validated_data.pop('gpu_specifications', None)  # ДОБАВЛЕНО
 
-       instance.cpu = validated_data.get('cpu', instance.cpu)
-       instance.ram = validated_data.get('ram', instance.ram)
-       instance.has_keyboard = validated_data.get('has_keyboard', instance.has_keyboard)
-       instance.has_mouse = validated_data.get('has_mouse', instance.has_mouse)
-       instance.monitor_size = validated_data.get('monitor_size', instance.monitor_size)
-       instance.save()
+        instance.cpu = validated_data.get('cpu', instance.cpu)
+        instance.ram = validated_data.get('ram', instance.ram)
+        instance.has_keyboard = validated_data.get('has_keyboard', instance.has_keyboard)
+        instance.has_mouse = validated_data.get('has_mouse', instance.has_mouse)
+        instance.monitor_size = validated_data.get('monitor_size', instance.monitor_size)
+        instance.save()
 
-       if disks_data is not None:
-           instance.disk_specifications.all().delete()
-           for disk_data in disks_data:
-               DiskSpecification.objects.create(monoblok_specification=instance, **disk_data)
+        if disks_data is not None:
+            instance.disk_specifications.all().delete()
+            for disk_data in disks_data:
+                DiskSpecification.objects.create(monoblok_specification=instance, **disk_data)
 
-       return instance
+        if gpus_data is not None:  # ДОБАВЛЕНО
+            instance.gpu_specifications.all().delete()
+            for gpu_data in gpus_data:
+                GPUSpecification.objects.create(monoblok_specification=instance, **gpu_data)
+
+        return instance
 
 
 class ProjectorCharSerializer(serializers.ModelSerializer):
@@ -794,12 +834,12 @@ class EquipmentSerializer(serializers.ModelSerializer):
         equipment = Equipment.objects.create(**validated_data)
         type_name = equipment.type.name.lower()
 
-        # Логика для компьютеров
         if type_name in self.COMPUTER_TYPES:
             if computer_specification:
                 spec = computer_specification
                 if not isinstance(computer_specification, ComputerSpecification):
                     spec = ComputerSpecification.objects.get(id=computer_specification)
+                
                 computer_details_data = {
                     'cpu': spec.cpu,
                     'ram': spec.ram,
@@ -809,13 +849,25 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
                 ComputerDetails.objects.create(equipment=equipment, **computer_details_data)
+                
+                # Создание дисков из спецификации
                 for disk_spec in spec.disk_specifications.all():
-                   Disk.objects.create(
-                       equipment=equipment,
-                       disk_type=disk_spec.disk_type,
-                       capacity_gb=disk_spec.capacity_gb,
-                       author=request.user if request and request.user.is_authenticated else None
-                   )
+                    Disk.objects.create(
+                        equipment=equipment,
+                        disk_type=disk_spec.disk_type,
+                        capacity_gb=disk_spec.capacity_gb,
+                        author=request.user if request and request.user.is_authenticated else None
+                    )
+                
+                # СОЗДАНИЕ ВИДЕОКАРТ ИЗ СПЕЦИФИКАЦИИ (точно как диски)
+                for gpu_spec in spec.gpu_specifications.all():
+                    GPU.objects.create(
+                        equipment=equipment,
+                        model=gpu_spec.model,
+                        memory_gb=gpu_spec.memory_gb,
+                        memory_type=gpu_spec.memory_type,
+                        author=request.user if request and request.user.is_authenticated else None
+                    )
 
         # Логика для ноутбуков
         elif type_name in self.NOTEBOOK_TYPES:
@@ -823,6 +875,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                 spec = notebook_specification
                 if not isinstance(notebook_specification, NotebookSpecification):
                     spec = NotebookSpecification.objects.get(id=notebook_specification)
+                
                 notebook_char_data = {
                     'cpu': spec.cpu,
                     'ram': spec.ram,
@@ -830,13 +883,25 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
                 NotebookChar.objects.create(equipment=equipment, **notebook_char_data)
+                
+                # Создание дисков
                 for disk_spec in spec.disk_specifications.all():
-                   Disk.objects.create(
-                       equipment=equipment,
-                       disk_type=disk_spec.disk_type,
-                       capacity_gb=disk_spec.capacity_gb,
-                       author=request.user if request and request.user.is_authenticated else None
-                   )
+                    Disk.objects.create(
+                        equipment=equipment,
+                        disk_type=disk_spec.disk_type,
+                        capacity_gb=disk_spec.capacity_gb,
+                        author=request.user if request and request.user.is_authenticated else None
+                    )
+                
+                # СОЗДАНИЕ ВИДЕОКАРТ (точно как диски)
+                for gpu_spec in spec.gpu_specifications.all():
+                    GPU.objects.create(
+                        equipment=equipment,
+                        model=gpu_spec.model,
+                        memory_gb=gpu_spec.memory_gb,
+                        memory_type=gpu_spec.memory_type,
+                        author=request.user if request and request.user.is_authenticated else None
+                    )
 
         # Логика для моноблоков
         elif type_name in self.MONOBLOK_TYPES:
@@ -844,6 +909,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                 spec = monoblok_specification
                 if not isinstance(monoblok_specification, MonoblokSpecification):
                     spec = MonoblokSpecification.objects.get(id=monoblok_specification)
+                
                 monoblok_char_data = {
                     'cpu': spec.cpu,
                     'ram': spec.ram,
@@ -852,14 +918,26 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'monitor_size': spec.monitor_size,
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
-                MonoblokChar.objects.create(equipment=equipment, **monoblok_char_data)
+                MonoblokChar.objects.create(equipment=equipment, specification=spec, **monoblok_char_data)
+                
+                # Создание дисков
                 for disk_spec in spec.disk_specifications.all():
-                   Disk.objects.create(
-                       equipment=equipment,
-                       disk_type=disk_spec.disk_type,
-                       capacity_gb=disk_spec.capacity_gb,
-                       author=request.user if request and request.user.is_authenticated else None
-                   )
+                    Disk.objects.create(
+                        equipment=equipment,
+                        disk_type=disk_spec.disk_type,
+                        capacity_gb=disk_spec.capacity_gb,
+                        author=request.user if request and request.user.is_authenticated else None
+                    )
+                
+                # СОЗДАНИЕ ВИДЕОКАРТ (точно как диски)
+                for gpu_spec in spec.gpu_specifications.all():
+                    GPU.objects.create(
+                        equipment=equipment,
+                        model=gpu_spec.model,
+                        memory_gb=gpu_spec.memory_gb,
+                        memory_type=gpu_spec.memory_type,
+                        author=request.user if request and request.user.is_authenticated else None
+                    )
 
         # Логика для принтеров
         elif type_name in self.PRINTER_TYPES:
