@@ -15,7 +15,7 @@ from .views import (
     NotebookCharViewSet, NotebookSpecificationViewSet,
     RepairViewSet, DisposalViewSet,
     EquipmentMaintenanceViewSet, RepairViewSet,
-    SpecificationViewSet,
+    SpecificationViewSet, MonitorCharViewSet, MonitorSpecificationViewSet 
 
 )
 
@@ -55,6 +55,8 @@ router.register(r'equipment-maintenance', EquipmentMaintenanceViewSet, basename=
 
 router.register(r'specifications', SpecificationViewSet, basename='specifications')
 
+router.register(r'monitor-char', MonitorCharViewSet, basename='monitor-char')
+router.register(r'monitor-specification', MonitorSpecificationViewSet, basename='monitor-specification')
 
 
 

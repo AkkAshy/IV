@@ -6,7 +6,8 @@ from .models import (Equipment, EquipmentType, ComputerDetails,
                      RouterChar, PrinterChar, TVChar, ExtenderChar,
                      PrinterSpecification, ExtenderSpecification, TVSpecification,
                      RouterSpecification, MonoblokSpecification, NotebookSpecification,
-                     ProjectorSpecification, WhiteboardSpecification, Disk, DiskSpecification)
+                     ProjectorSpecification, WhiteboardSpecification, Disk, DiskSpecification,
+                     MonitorChar, MonitorSpecification)  # Добавляем MonitorChar и MonitorSpecification
 from university.models import Room
 
 class MoveEquipmentForm(forms.Form):
@@ -89,13 +90,13 @@ class EquipmentAdmin(admin.ModelAdmin):
         if not change:  # Только при создании
             obj.author = request.user
         super().save_model(request, obj, form, change)
+        
         computer_specification = form.cleaned_data.get('computer_specification')
         if computer_specification and obj.type.name.lower() == 'компьютер':
             try:
                 computer_details = obj.computer_details
                 computer_details.cpu = computer_specification.cpu
                 computer_details.ram = computer_specification.ram
-                computer_details.storage = computer_specification.storage
                 computer_details.has_keyboard = computer_specification.has_keyboard
                 computer_details.has_mouse = computer_specification.has_mouse
                 computer_details.monitor_size = computer_specification.monitor_size
@@ -105,19 +106,20 @@ class EquipmentAdmin(admin.ModelAdmin):
                     equipment=obj,
                     cpu=computer_specification.cpu,
                     ram=computer_specification.ram,
-                    storage=computer_specification.storage,
                     has_keyboard=computer_specification.has_keyboard,
                     has_mouse=computer_specification.has_mouse,
                     monitor_size=computer_specification.monitor_size
                 )
-                obj.disks.all().delete()
-                for disk_spec in computer_specification.disks.all():
-                    Disk.objects.create(
-                        equipment=obj,
-                        disk_type=disk_spec.disk_type,
-                        capacity_gb=disk_spec.capacity_gb,
-                        author=request.user
-                    )
+            
+            # Удаляем старые диски и создаем новые из спецификации
+            obj.disks.all().delete()
+            for disk_spec in computer_specification.disk_specifications.all():
+                Disk.objects.create(
+                    equipment=obj,
+                    disk_type=disk_spec.disk_type,
+                    capacity_gb=disk_spec.capacity_gb,
+                    author=request.user
+                )
 
 @admin.register(EquipmentType)
 class EquipmentTypeAdmin(admin.ModelAdmin):
@@ -130,14 +132,14 @@ class DiskSpecificationInline(admin.TabularInline):
 
 @admin.register(ComputerSpecification)
 class ComputerSpecificationAdmin(admin.ModelAdmin):
-   list_display = ('cpu', 'ram', 'has_keyboard', 'has_mouse', 'monitor_size')
+   list_display = ('cpu', 'ram', 'has_keyboard', 'has_mouse')
    search_fields = ['cpu', 'ram', ]
    list_filter = ('has_keyboard', 'has_mouse')
    inlines = [DiskSpecificationInline]
 
 @admin.register(ComputerDetails)
 class ComputerDetailsAdmin(admin.ModelAdmin):
-   list_display = ('equipment', 'cpu', 'ram', 'has_keyboard', 'has_mouse', 'monitor_size')
+   list_display = ('equipment', 'cpu', 'ram', 'has_keyboard', 'has_mouse')
    search_fields = ['equipment__name', 'cpu', 'ram']
    list_filter = ('has_keyboard', 'has_mouse')
 
@@ -243,3 +245,20 @@ class DiskAdmin(admin.ModelAdmin):
 class DiskSpecificationAdmin(admin.ModelAdmin):
    list_display = ('disk_type', 'capacity_gb', 'author', 'created_at')
    list_filter = ('disk_type', 'author')
+
+
+@admin.register(MonitorChar)
+class MonitorCharAdmin(admin.ModelAdmin):
+    list_display = ('model', 'screen_size', 'resolution', 'panel_type', 'refresh_rate', 'author', 'serial_number')
+    search_fields = ['model', 'serial_number', 'screen_size']
+    list_filter = ('panel_type', 'refresh_rate', 'author', 'screen_size')
+
+
+@admin.register(MonitorSpecification)
+class MonitorSpecificationAdmin(admin.ModelAdmin):
+    list_display = ('model', 'serial_number', 'screen_size', 'resolution', 'panel_type', 'refresh_rate')
+    search_fields = ['model', 'screen_size', 'resolution']
+    list_filter = ('panel_type', 'refresh_rate')
+
+
+# Также нужно обновить импорты в начале файла

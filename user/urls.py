@@ -1,10 +1,12 @@
+# user/urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import UserViewSet, SupportMessageCreateAPIView, SupportMessageListAPIView, NewSupportMessagesAPIView, MarkSupportMessageAsNotifiedAPIView
 
 router = DefaultRouter()
-router.register(r'user', UserViewSet, basename='user')  # Добавь префикс 'users'
+router.register(r'users', UserViewSet, basename='user')  # Изменено с 'user' на 'users'
 
 urlpatterns = [
     path('', include(router.urls)),

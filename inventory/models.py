@@ -41,6 +41,7 @@ class ContractDocument(models.Model):
 
 
 
+
 class Equipment(models.Model):
     STATUS_CHOICES = [
         ('NEW', 'Новое'),
@@ -169,7 +170,6 @@ class ComputerDetails(models.Model):
     ram = models.CharField(max_length=255, help_text="Оперативная память", verbose_name="Оперативная память")
     has_keyboard = models.BooleanField(default=True, help_text="Есть ли клавиатура")
     has_mouse = models.BooleanField(default=True, help_text="Есть ли мышь")
-    monitor_size = models.CharField(max_length=50, blank=True, help_text="Размер монитора (если есть)", verbose_name="Размер монитора")
 
     def __str__(self):
         return f"Компьютерные характеристики для {self.equipment.name}"
@@ -185,7 +185,6 @@ class ComputerSpecification(models.Model):
     disks = models.ManyToManyField('DiskSpecification', verbose_name="Накопители", blank=True)
     has_keyboard = models.BooleanField(default=True, verbose_name="Есть ли клавиатура")
     has_mouse = models.BooleanField(default=True, verbose_name="Есть ли мышь")
-    monitor_size = models.CharField(max_length=50, blank=True, verbose_name="Размер монитора")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="Уникальный ID")
     author = models.ForeignKey(
@@ -811,3 +810,77 @@ class Disposal(models.Model):
     class Meta:
         verbose_name = "Утилизация"
         verbose_name_plural = "Утилизации"
+
+
+
+class MonitorChar(models.Model):
+    equipment = models.OneToOneField(Equipment, on_delete=models.CASCADE, related_name='monitor_char', verbose_name="Оборудование")
+    model = models.CharField(max_length=255, verbose_name="Модель монитора")
+    serial_number = models.CharField(max_length=255, verbose_name="Серийный номер")
+    screen_size = models.CharField(max_length=50, verbose_name="Размер экрана")
+    resolution = models.CharField(max_length=50, verbose_name="Разрешение", help_text="Например, 1920x1080")
+    panel_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('IPS', 'IPS'),
+            ('TN', 'TN'),
+            ('VA', 'VA'),
+            ('OLED', 'OLED'),
+        ],
+        verbose_name="Тип матрицы",
+        blank=True
+    )
+    refresh_rate = models.PositiveIntegerField(verbose_name="Частота обновления (Гц)", null=True, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_monitor',
+        verbose_name="Автор"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
+
+    def __str__(self):
+        return f"Монитор {self.model} ({self.serial_number})"
+
+    class Meta:
+        verbose_name = "Монитор Char"
+        verbose_name_plural = "Мониторы Char"
+
+
+class MonitorSpecification(models.Model):
+    model = models.CharField(max_length=255, verbose_name="Модель монитора")
+    serial_number = models.CharField(max_length=255, verbose_name="Серийный номер")
+    screen_size = models.CharField(max_length=50, verbose_name="Размер экрана")
+    resolution = models.CharField(max_length=50, verbose_name="Разрешение", help_text="Например, 1920x1080")
+    panel_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('IPS', 'IPS'),
+            ('TN', 'TN'),
+            ('VA', 'VA'),
+            ('OLED', 'OLED'),
+        ],
+        verbose_name="Тип матрицы",
+        blank=True
+    )
+    refresh_rate = models.PositiveIntegerField(verbose_name="Частота обновления (Гц)", null=True, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='createdspek_monitor',
+        verbose_name="Автор"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
+
+    def __str__(self):
+        return f"Спецификация монитора {self.model} ({self.serial_number})"
+
+    class Meta:
+        verbose_name = "Спецификация монитора"
+        verbose_name_plural = "Спецификации мониторов"

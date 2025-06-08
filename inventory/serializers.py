@@ -5,7 +5,7 @@ from .models import (EquipmentType, Equipment, ComputerDetails,
                      RouterChar, ExtenderChar, TVChar, PrinterChar,
                      NotebookChar, NotebookSpecification, MonoblokChar, MonoblokSpecification,
                      ProjectorChar, ProjectorSpecification, WhiteboardChar, WhiteboardSpecification,
-                     Repair, Disposal, Disk, DiskSpecification
+                     Repair, Disposal, Disk, DiskSpecification, MonitorChar, MonitorSpecification
                      )
 from datetime import datetime
 from university.models import Room
@@ -95,8 +95,7 @@ class ComputerDetailsSerializer(serializers.ModelSerializer):
             'cpu',
             'ram',
             'has_keyboard',
-            'has_mouse',
-            'monitor_size',
+            'has_mouse'
         ]
 
 
@@ -125,7 +124,7 @@ class ComputerSpecificationSerializer(serializers.ModelSerializer):
         model = ComputerSpecification
         fields = [
             'id', 'cpu', 'ram', 'has_keyboard', 'has_mouse',
-            'monitor_size', 'created_at', 'uid', 'author', 'author_id', 'disk_specifications'
+            'created_at', 'uid', 'author', 'author_id', 'disk_specifications'
         ]
         read_only_fields = ['created_at', 'uid', 'author']
 
@@ -378,6 +377,28 @@ class EquipmentFromLinkSerializer(serializers.Serializer):
         except Room.DoesNotExist:
             raise serializers.ValidationError("Кабинет или корпус не найдены")
         return {'room_id': room_id, 'building_id': building_id, 'room': room}
+    
+
+class MonitorCharSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MonitorChar
+        fields = '__all__'
+        read_only_fields = ('author', 'created_at', 'updated_at', 'equipment')
+
+
+class MonitorSpecificationSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+
+    def get_queryset(self):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return MonitorSpecification.objects.filter(author=user)
+        return MonitorSpecification.objects.none()
+
+    class Meta:
+        model = MonitorSpecification
+        fields = ['id', 'model', 'serial_number', 'screen_size', 'resolution', 'panel_type', 'refresh_rate', 'author', 'created_at', 'updated_at']
+
 
 class EquipmentSerializer(serializers.ModelSerializer):
     COMPUTER_TYPES = {'компьютер'}
@@ -389,6 +410,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
     TV_TYPES = {'телевизор'}
     PROJECTOR_TYPES = {'проектор'}
     WHITEBOARD_TYPES = {'электронная доска'}
+    MONITOR_TYPES = {'монитор'}  # Добавить
 
     # Существующие поля
     contract = ContractDocumentSerializer(read_only=True, allow_null=True)
@@ -420,6 +442,8 @@ class EquipmentSerializer(serializers.ModelSerializer):
     monoblok_char = MonoblokCharSerializer(required=False, allow_null=True)
     projector_char = ProjectorCharSerializer(required=False, allow_null=True)
     whiteboard_char = WhiteboardCharSerializer(required=False, allow_null=True)
+    monitor_char = MonitorCharSerializer(required=False, allow_null=True)  # Добавить
+
 
     # Поля для шаблонов
     computer_specification_id = serializers.PrimaryKeyRelatedField(
@@ -485,6 +509,14 @@ class EquipmentSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="ID шаблона спецификации электронной доски для автозаполнения характеристик"
     )
+    monitor_specification_id = serializers.PrimaryKeyRelatedField(
+        queryset=MonitorSpecification.objects.all(),
+        required=False,
+        allow_null=True,
+        write_only=True,
+        help_text="ID шаблона спецификации монитора для автозаполнения характеристик"
+    )
+    
 
     # Поля для отображения данных спецификаций
     computer_specification_data = ComputerSpecificationSerializer(source='computer_details', read_only=True, allow_null=True)
@@ -496,6 +528,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
     monoblok_specification_data = MonoblokSpecificationSerializer(source='monoblok_char', read_only=True, allow_null=True)
     projector_specification_data = ProjectorSpecificationSerializer(source='projector_char', read_only=True, allow_null=True)
     whiteboard_specification_data = WhiteboardSpecificationSerializer(source='whiteboard_char', read_only=True, allow_null=True)
+    monitor_specification_data = MonitorSpecificationSerializer(source='monitor_char', read_only=True, allow_null=True)  # Добавить
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -532,7 +565,8 @@ class EquipmentSerializer(serializers.ModelSerializer):
             'monoblok_specification_data', 'projector_char', 'projector_specification_id',
             'projector_specification_data', 'whiteboard_char', 'whiteboard_specification_id',
             'whiteboard_specification_data', 'status', 'qr_code_url', 'uid', 'author',
-            'author_id', 'inn', 'location', 'repair_record', 'disposal_record', 'inn'
+            'author_id', 'inn', 'location', 'repair_record', 'disposal_record', 'inn',
+            'monitor_char', 'monitor_specification_data', 'monitor_specification_id', 'monitor_specification_data'
         ]
         read_only_fields = ['created_at', 'uid', 'author']
 
@@ -775,7 +809,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
                 ComputerDetails.objects.create(equipment=equipment, **computer_details_data)
-                for disk_spec in spec.disks_spec.all():
+                for disk_spec in spec.disk_specifications.all():
                    Disk.objects.create(
                        equipment=equipment,
                        disk_type=disk_spec.disk_type,
@@ -796,7 +830,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
                 NotebookChar.objects.create(equipment=equipment, **notebook_char_data)
-                for disk_spec in spec.disks_spec.all():
+                for disk_spec in spec.disk_specifications.all():
                    Disk.objects.create(
                        equipment=equipment,
                        disk_type=disk_spec.disk_type,
@@ -819,7 +853,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
                 MonoblokChar.objects.create(equipment=equipment, **monoblok_char_data)
-                for disk_spec in spec.disks_spec.all():
+                for disk_spec in spec.disk_specifications.all():
                    Disk.objects.create(
                        equipment=equipment,
                        disk_type=disk_spec.disk_type,
@@ -1330,6 +1364,7 @@ class BulkEquipmentSerializer(serializers.Serializer):
     projector_char = ProjectorCharSerializer(required=False, allow_null=True)
     whiteboard_char = WhiteboardCharSerializer(required=False, allow_null=True)
     disks = DiskSerializer(many=True, required=False, allow_null=True)
+    monitor_char = MonitorCharSerializer(required=False, allow_null=True)
     
 
 
@@ -1384,6 +1419,11 @@ class BulkEquipmentSerializer(serializers.Serializer):
         required=False, 
         allow_null=True
     )
+    monitor_specification_id = serializers.PrimaryKeyRelatedField(
+    queryset=MonitorSpecification.objects.all(),
+    required=False,
+    allow_null=True
+    )
 
     def validate(self, data):
         equipment_type = data.get('type_id')
@@ -1437,6 +1477,11 @@ class BulkEquipmentSerializer(serializers.Serializer):
                 'spec_id': data.get('whiteboard_specification_id'),
                 'error_msg': "Для электронных досок укажите либо whiteboard_char, либо whiteboard_specification_id."
             },
+            'монитор': {
+                'details': data.get('monitor_char'),
+                'spec_id': data.get('monitor_specification_id'),
+                'error_msg': "Для мониторов укажите либо monitor_char, либо monitor_specification_id."
+            },
         }
 
         # Проверка соответствия характеристик типу оборудования
@@ -1483,6 +1528,8 @@ class BulkEquipmentSerializer(serializers.Serializer):
         projector_char_data = validated_data.pop('projector_char', None)
         whiteboard_char_data = validated_data.pop('whiteboard_char', None)
         disks_data = validated_data.pop('disks', None)
+        monitor_char_data = validated_data.pop('monitor_char', None)
+
 
         computer_spec = validated_data.pop('computer_specification_id', None)
         printer_spec = validated_data.pop('printer_specification_id', None)
@@ -1494,7 +1541,7 @@ class BulkEquipmentSerializer(serializers.Serializer):
         projector_spec = validated_data.pop('projector_specification_id', None)
         whiteboard_spec = validated_data.pop('whiteboard_specification_id', None)
         disk_specifications_data = validated_data.pop('disk_specifications', None)
-        
+        monitor_spec = validated_data.pop('monitor_specification_id', None)
 
         equipments = []
 
@@ -1505,7 +1552,28 @@ class BulkEquipmentSerializer(serializers.Serializer):
                 'ram': computer_spec.ram,
                 'has_keyboard': computer_spec.has_keyboard,
                 'has_mouse': computer_spec.has_mouse,
-                'monitor_size': computer_spec.monitor_size,
+            }
+        if notebook_spec:
+            notebook_char_data = {
+                'cpu': notebook_spec.cpu,
+                'ram': notebook_spec.ram,
+                'monitor_size': notebook_spec.monitor_size,
+            }
+        if monoblok_spec:
+            monoblok_char_data = {
+                'cpu': monoblok_spec.cpu,
+                'ram': monoblok_spec.ram,
+                'has_keyboard': monoblok_spec.has_keyboard,
+                'has_mouse': monoblok_spec.has_mouse,
+                'monitor_size': monoblok_spec.monitor_size,
+            }
+        if monitor_spec:  # Добавлено
+            monitor_char_data = {
+                'model': monitor_spec.model,
+                'screen_size': monitor_spec.screen_size,
+                'resolution': monitor_spec.resolution,
+                'panel_type': monitor_spec.panel_type,
+                'refresh_rate': monitor_spec.refresh_rate,
             }
         if printer_spec:
             printer_char_data = {
@@ -1532,20 +1600,6 @@ class BulkEquipmentSerializer(serializers.Serializer):
                 'serial_number': tv_spec.serial_number,
                 'screen_size': tv_spec.screen_size,
             }
-        if notebook_spec:
-            notebook_char_data = {
-                'cpu': notebook_spec.cpu,
-                'ram': notebook_spec.ram,
-                'monitor_size': notebook_spec.monitor_size,
-            }
-        if monoblok_spec:
-            monoblok_char_data = {
-                'cpu': monoblok_spec.cpu,
-                'ram': monoblok_spec.ram,
-                'has_keyboard': monoblok_spec.has_keyboard,
-                'has_mouse': monoblok_spec.has_mouse,
-                'monitor_size': monoblok_spec.monitor_size,
-            }
         if projector_spec:
             projector_char_data = {
                 'model': projector_spec.model,
@@ -1559,6 +1613,7 @@ class BulkEquipmentSerializer(serializers.Serializer):
                 'screen_size': whiteboard_spec.screen_size,
                 'touch_type': whiteboard_spec.touch_type,
             }
+
 
         for i in range(count):
             equipment_data = {
@@ -1574,42 +1629,74 @@ class BulkEquipmentSerializer(serializers.Serializer):
             }
 
             equipment = Equipment.objects.create(**equipment_data)
-
-            # Создание характеристик
             equipment_type_name = equipment.type.name.lower()
+
+            # Создание характеристик и дисков для компьютеров
             if equipment_type_name == 'компьютер' and computer_details_data:
                 ComputerDetails.objects.create(equipment=equipment, **computer_details_data)
+                
+                # Создаем диски из спецификации
                 if computer_spec:
-                    for disk_spec in computer_spec.disks_spec.all():
-                        Disk.objects.create(equipment=equipment, disk_type=disk_spec.disk_type, capacity_gb=disk_spec.capacity_gb, author=author)
-            elif equipment_type_name == 'принтер' and printer_char_data:
-                PrinterChar.objects.create(equipment=equipment, **printer_char_data)
-            elif equipment_type_name == 'удлинитель' and extender_char_data:
-                ExtenderChar.objects.create(equipment=equipment, **extender_char_data)
-            elif equipment_type_name == 'роутер' and router_char_data:
-                RouterChar.objects.create(equipment=equipment, **router_char_data)
-            elif equipment_type_name == 'телевизор' and tv_char_data:
-                TVChar.objects.create(equipment=equipment, **tv_char_data)
+                    for disk_spec in computer_spec.disk_specifications.all():
+                        Disk.objects.create(
+                            equipment=equipment,
+                            disk_type=disk_spec.disk_type,
+                            capacity_gb=disk_spec.capacity_gb,
+                            author=author
+                        )
+
+            # Создание характеристик и дисков для ноутбуков
             elif equipment_type_name == 'ноутбук' and notebook_char_data:
                 NotebookChar.objects.create(equipment=equipment, **notebook_char_data)
+                
+                # Создаем диски из спецификации
                 if notebook_spec:
-                   for disk_spec in notebook_spec.disks_spec.all():
-                       Disk.objects.create(equipment=equipment, disk_type=disk_spec.disk_type, capacity_gb=disk_spec.capacity_gb, author=author)
+                    for disk_spec in notebook_spec.disk_specifications.all():
+                        Disk.objects.create(
+                            equipment=equipment,
+                            disk_type=disk_spec.disk_type,
+                            capacity_gb=disk_spec.capacity_gb,
+                            author=author
+                        )
+
+            # Создание характеристик и дисков для моноблоков
             elif equipment_type_name == 'моноблок' and monoblok_char_data:
                 MonoblokChar.objects.create(equipment=equipment, **monoblok_char_data)
+                
+                # Создаем диски из спецификации
                 if monoblok_spec:
-                   for disk_spec in monoblok_spec.disks_spec.all():
-                       Disk.objects.create(equipment=equipment, disk_type=disk_spec.disk_type, capacity_gb=disk_spec.capacity_gb, author=author)
+                    for disk_spec in monoblok_spec.disk_specifications.all():
+                        Disk.objects.create(
+                            equipment=equipment,
+                            disk_type=disk_spec.disk_type,
+                            capacity_gb=disk_spec.capacity_gb,
+                            author=author
+                        )
+
+            # Остальные типы оборудования...
+            elif equipment_type_name == 'монитор' and monitor_char_data:  # Добавлено
+                monitor_char_data['serial_number'] = str(equipment.inn) if equipment.inn else ''
+                MonitorChar.objects.create(equipment=equipment, **monitor_char_data)
+            elif equipment_type_name in ['принтер', 'мфу'] and printer_char_data:
+                printer_char_data['serial_number'] = str(equipment.inn) if equipment.inn else ''
+                PrinterChar.objects.create(equipment=equipment, **printer_char_data)
+            elif equipment_type_name in ['удлинитель', 'сетевой фильтр'] and extender_char_data:
+                ExtenderChar.objects.create(equipment=equipment, **extender_char_data)
+            elif equipment_type_name == 'роутер' and router_char_data:
+                router_char_data['serial_number'] = str(equipment.inn) if equipment.inn else ''
+                RouterChar.objects.create(equipment=equipment, **router_char_data)
+            elif equipment_type_name == 'телевизор' and tv_char_data:
+                tv_char_data['serial_number'] = str(equipment.inn) if equipment.inn else ''
+                TVChar.objects.create(equipment=equipment, **tv_char_data)
             elif equipment_type_name == 'проектор' and projector_char_data:
                 ProjectorChar.objects.create(equipment=equipment, **projector_char_data)
             elif equipment_type_name == 'электронная доска' and whiteboard_char_data:
                 WhiteboardChar.objects.create(equipment=equipment, **whiteboard_char_data)
 
+
             equipments.append(equipment)
 
         return equipments
-
-
 
 from django.utils import timezone
 now = timezone.now()
@@ -1839,3 +1926,4 @@ class DisposalSerializer(serializers.ModelSerializer):
         disposal = Disposal.objects.create(**validated_data)
 
         return disposal
+    

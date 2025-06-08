@@ -43,7 +43,8 @@ from .models import (EquipmentType, ContractDocument, Equipment,
                     WhiteboardSpecification, WhiteboardChar,
                     ProjectorChar, ProjectorSpecification,
                     NotebookChar, NotebookSpecification,
-                    MonoblokChar, MonoblokSpecification, Repair, Disposal
+                    MonoblokChar, MonoblokSpecification, Repair, Disposal,
+                    MonitorChar, MonitorSpecification
 )
 
 from .serializers import (
@@ -59,7 +60,7 @@ from .serializers import (
     WhiteboardCharSerializer, WhiteboardSpecificationSerializer,
     EquipmentFromLinkSerializer,
     RepairSerializer, DisposalSerializer, EquipmentNameSerializer,
-    CustomEquipmentSerializer
+    CustomEquipmentSerializer, MonitorCharSerializer, MonitorSpecificationSerializer
 )
 from .pagination import ContractPagination, CustomPagination
 
@@ -93,6 +94,7 @@ class SpecificationViewSet(viewsets.ViewSet):
             {'model': ProjectorSpecification, 'name': 'ProjectorSpecification'},
             {'model': NotebookSpecification, 'name': 'NotebookSpecification'},
             {'model': MonoblokSpecification, 'name': 'MonoblokSpecification'},
+            {'model': MonitorSpecification, 'name': 'MonitorSpecification'},
         ]
 
         # Результат
@@ -107,6 +109,42 @@ class SpecificationViewSet(viewsets.ViewSet):
                 result[model_name] = count
 
         return Response(result if result else {}, status=200)
+
+
+class MonitorCharViewSet(viewsets.ModelViewSet):
+    queryset = MonitorChar.objects.all()
+    serializer_class = MonitorCharSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['model', 'screen_size', 'panel_type']
+    search_fields = ['model', 'serial_number']
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return MonitorChar.objects.filter(author=self.request.user)
+    
+    def perform_create(self, serializer):
+        monitor = serializer.save(author=self.request.user)
+        try:
+            UserAction.objects.create(
+                user=self.request.user,
+                action_type='CREATE_EQUIPMENT',
+                description=f"Создана характеристика монитора: {str(monitor)}",
+                content_object=monitor,
+                details={'name': str(monitor), 'id': monitor.id, 'model_type': 'MonitorChar'}
+            )
+        except Exception as e:
+            print(f"Error creating user action: {e}")
+
+
+class MonitorSpecificationViewSet(ModelViewSet):
+    serializer_class = MonitorSpecificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return MonitorSpecification.objects.filter(author=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
 
 class EquipmentFromLinkView(APIView):
