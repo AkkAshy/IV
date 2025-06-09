@@ -20,7 +20,8 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=20, null=True, blank=True, verbose_name="Телефонный номер")
     email = models.EmailField(unique=True, verbose_name="Электронная почта")
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True, verbose_name="Фото профиля")
-
+    plain_password = models.CharField(max_length=128, blank=True, null=True, verbose_name="Исходный пароль")
+    
     def is_admin(self):
         return self.role == self.Role.ADMIN
 

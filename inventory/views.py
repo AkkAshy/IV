@@ -1178,11 +1178,17 @@ class EquipmentMaintenanceViewSet(viewsets.ViewSet):
                 {"detail": "Оборудование уже находится в ремонте."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if hasattr(equipment, 'repair_record'):
+        
+        # БЕЗОПАСНАЯ проверка наличия записи о ремонте
+        try:
+            repair_record = equipment.repair_record
             return Response(
                 {"detail": "Для этого оборудования уже существует запись о ремонте."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        except Repair.DoesNotExist:
+            # Это нормально - записи о ремонте нет, можем создавать
+            pass
 
         # Создаем данные для записи о ремонте
         repair_data = {
@@ -1193,7 +1199,8 @@ class EquipmentMaintenanceViewSet(viewsets.ViewSet):
         # Создаем запись о ремонте
         serializer = RepairSerializer(data=repair_data)
         serializer.is_valid(raise_exception=True)
-        repair = serializer.save() # serializer.save() вызовет perform_create из RepairViewSet, где логирование уже есть
+        repair = serializer.save()
+        
         # Дополнительное логирование для действия "отправить на ремонт"
         equipment = repair.equipment
         try:
@@ -1233,11 +1240,17 @@ class EquipmentMaintenanceViewSet(viewsets.ViewSet):
                 {"detail": "Оборудование уже отмечено как утилизированное."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if hasattr(equipment, 'disposal_record'):
+        
+        # БЕЗОПАСНАЯ проверка наличия записи об утилизации
+        try:
+            disposal_record = equipment.disposal_record
             return Response(
                 {"detail": "Для этого оборудования уже существует запись об утилизации."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        except Disposal.DoesNotExist:
+            # Это нормально - записи об утилизации нет, можем создавать
+            pass
 
         # Проверяем, что указана причина утилизации
         reason = request.data.get('reason')
@@ -1257,7 +1270,8 @@ class EquipmentMaintenanceViewSet(viewsets.ViewSet):
         # Создаем запись об утилизации
         serializer = DisposalSerializer(data=disposal_data)
         serializer.is_valid(raise_exception=True)
-        disposal = serializer.save() # serializer.save() вызовет perform_create из DisposalViewSet
+        disposal = serializer.save()
+        
         # Дополнительное логирование для действия "утилизировать"
         equipment = disposal.equipment
         try:

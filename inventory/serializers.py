@@ -132,7 +132,7 @@ class ComputerSpecificationSerializer(serializers.ModelSerializer):
         model = ComputerSpecification
         fields = [
             'id', 'cpu', 'ram', 'has_keyboard', 'has_mouse',
-            'monitor_size', 'created_at', 'uid', 'author', 'author_id', 
+            'created_at', 'uid', 'author', 'author_id', 
             'disk_specifications', 'gpu_specifications'  # ДОБАВЛЕНО
         ]
         read_only_fields = ['created_at', 'uid', 'author']
@@ -467,9 +467,14 @@ class EquipmentSerializer(serializers.ModelSerializer):
         allow_null=True,
         source='author'
     )
+
+    repair_record = serializers.SerializerMethodField()
+    disposal_record = serializers.SerializerMethodField()
+
     location = serializers.CharField(required=False, allow_null=True)
     repair_record = RepairSerializer(read_only=True)
     disposal_record = DisposalSerializer(read_only=True)
+    gpus = GPUSerializer(many=True, read_only=True)  # ДОБАВЛЕНО
 
     disks = DiskSerializer(many=True, read_only=True)
     # Поля для характеристик
@@ -559,13 +564,13 @@ class EquipmentSerializer(serializers.ModelSerializer):
     
 
     # Поля для отображения данных спецификаций
-    computer_specification_data = ComputerSpecificationSerializer(source='computer_details', read_only=True, allow_null=True)
+    computer_specification_data = ComputerSpecificationSerializer(source='computer_details.specification', read_only=True, allow_null=True)
+    notebook_specification_data = NotebookSpecificationSerializer(source='notebook_details.specification', read_only=True, allow_null=True)
+    monoblok_specification_data = MonoblokSpecificationSerializer(source='monoblok_details.specification', read_only=True, allow_null=True)
     printer_specification_data = PrinterSpecificationSerializer(source='printer_char', read_only=True, allow_null=True)
     extender_specification_data = ExtenderSpecificationSerializer(source='extender_char', read_only=True, allow_null=True)
     router_specification_data = RouterSpecificationSerializer(source='router_char', read_only=True, allow_null=True)
     tv_specification_data = TVSpecificationSerializer(source='tv_char', read_only=True, allow_null=True)
-    notebook_specification_data = NotebookSpecificationSerializer(source='notebook_char', read_only=True, allow_null=True)
-    monoblok_specification_data = MonoblokSpecificationSerializer(source='monoblok_char', read_only=True, allow_null=True)
     projector_specification_data = ProjectorSpecificationSerializer(source='projector_char', read_only=True, allow_null=True)
     whiteboard_specification_data = WhiteboardSpecificationSerializer(source='whiteboard_char', read_only=True, allow_null=True)
     monitor_specification_data = MonitorSpecificationSerializer(source='monitor_char', read_only=True, allow_null=True)  # Добавить
@@ -596,17 +601,18 @@ class EquipmentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'type', 'type_data', 'room', 'room_data', 'name', 'photo', 'description',
             'is_active', 'contract', 'created_at', 'computer_details', 'computer_specification_id',
-            'computer_specification_data', 'disks', 'printer_char', 'printer_specification_id',
-            'printer_specification_data', 'extender_char', 'extender_specification_id',
-            'extender_specification_data', 'router_char', 'router_specification_id',
-            'router_specification_data', 'tv_char', 'tv_specification_id',
-            'tv_specification_data', 'notebook_char', 'notebook_specification_id',
-            'notebook_specification_data', 'monoblok_char', 'monoblok_specification_id',
-            'monoblok_specification_data', 'projector_char', 'projector_specification_id',
-            'projector_specification_data', 'whiteboard_char', 'whiteboard_specification_id',
-            'whiteboard_specification_data', 'status', 'qr_code_url', 'uid', 'author',
-            'author_id', 'inn', 'location', 'repair_record', 'disposal_record', 'inn',
-            'monitor_char', 'monitor_specification_data', 'monitor_specification_id', 'monitor_specification_data'
+            'computer_specification_data', 'disks', 'gpus',  # ДОБАВЛЕНО gpus
+            'printer_char', 'printer_specification_id', 'printer_specification_data', 
+            'extender_char', 'extender_specification_id', 'extender_specification_data', 
+            'router_char', 'router_specification_id', 'router_specification_data', 
+            'tv_char', 'tv_specification_id', 'tv_specification_data', 
+            'notebook_char', 'notebook_specification_id', 'notebook_specification_data', 
+            'monoblok_char', 'monoblok_specification_id', 'monoblok_specification_data', 
+            'projector_char', 'projector_specification_id', 'projector_specification_data', 
+            'whiteboard_char', 'whiteboard_specification_id', 'whiteboard_specification_data', 
+            'status', 'qr_code_url', 'uid', 'author', 'author_id', 'inn', 'location', 
+            'repair_record', 'disposal_record', 'monitor_char', 'monitor_specification_data', 
+            'monitor_specification_id'
         ]
         read_only_fields = ['created_at', 'uid', 'author']
 
@@ -623,16 +629,21 @@ class EquipmentSerializer(serializers.ModelSerializer):
         instance = getattr(self, 'instance', None)
         new_status = data.get('status', instance.status if instance else None)
 
-        # Логика ремонта и утилизации
-        if instance and new_status == 'NEEDS_REPAIR' and not instance.repair_record:
-            instance._original_room = instance.room
-            instance.room = None
-            instance.location = 'Каталог ремонта'
-            Repair.objects.create(equipment=instance)
-        elif instance and new_status == 'DISPOSED' and not instance.disposal_record:
-            instance.room = None
-            instance.location = 'Утилизация'
-            Disposal.objects.create(equipment=instance, reason="Переведено на утилизацию")
+        # ИСПРАВЛЕННАЯ логика ремонта и утилизации
+        if instance and new_status == 'NEEDS_REPAIR':
+            # Проверяем, есть ли уже запись о ремонте
+            if not hasattr(instance, 'repair_record'):
+                instance._original_room = instance.room
+                instance.room = None
+                instance.location = 'Каталог ремонта'
+                # Создаем запись о ремонте будет в методе update
+                
+        elif instance and new_status == 'DISPOSED':
+            # Проверяем, есть ли уже запись об утилизации
+            if not hasattr(instance, 'disposal_record'):
+                instance.room = None
+                instance.location = 'Утилизация'
+                # Создаем запись об утилизации будет в методе update
 
         if new_status in ['NEEDS_REPAIR', 'DISPOSED'] and 'location' in data:
             expected_location = 'Каталог ремонта' if new_status == 'NEEDS_REPAIR' else 'Утилизация'
@@ -848,7 +859,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                     'monitor_size': spec.monitor_size,
                     'author': request.user if request and request.user.is_authenticated else None,
                 }
-                ComputerDetails.objects.create(equipment=equipment, **computer_details_data)
+                ComputerDetails.objects.create(equipment=equipment, specification=spec, **computer_details_data)
                 
                 # Создание дисков из спецификации
                 for disk_spec in spec.disk_specifications.all():
@@ -859,7 +870,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
                         author=request.user if request and request.user.is_authenticated else None
                     )
                 
-                # СОЗДАНИЕ ВИДЕОКАРТ ИЗ СПЕЦИФИКАЦИИ (точно как диски)
+                # СОЗДАНИЕ ВИДЕОКАРТ ИЗ СПЕЦИФИКАЦИИ (как диски)
                 for gpu_spec in spec.gpu_specifications.all():
                     GPU.objects.create(
                         equipment=equipment,
@@ -868,6 +879,9 @@ class EquipmentSerializer(serializers.ModelSerializer):
                         memory_type=gpu_spec.memory_type,
                         author=request.user if request and request.user.is_authenticated else None
                     )
+            elif computer_details_data:
+                ComputerDetails.objects.create(equipment=equipment, **computer_details_data)
+
 
         # Логика для ноутбуков
         elif type_name in self.NOTEBOOK_TYPES:
@@ -1086,24 +1100,56 @@ class EquipmentSerializer(serializers.ModelSerializer):
         projector_specification_id = get_specification_id(projector_specification_id)
         whiteboard_specification_id = get_specification_id(whiteboard_specification_id)
 
-        # Логика возврата из ремонта
+        # ИСПРАВЛЕННАЯ логика возврата из ремонта
         if new_status == 'WORKING' and original_status == 'NEEDS_REPAIR':
-            repair = instance.repair_record
-            if repair and repair.status == 'COMPLETED':
-                if hasattr(instance, '_original_room') and instance._original_room:
-                    validated_data['room'] = instance._original_room
-                    del instance._original_room
-                    validated_data['location'] = instance.room.number if instance.room else None
-            elif repair and repair.status == 'FAILED':
-                validated_data['status'] = 'DISPOSED'
-                validated_data['room'] = None
-                validated_data['location'] = 'Утилизация'
-                if not instance.disposal_record:
-                    Disposal.objects.create(
-                        equipment=instance,
-                        reason="Неудачный ремонт",
-                        notes="Оборудование не подлежит восстановлению после ремонта"
-                    )
+            # Безопасная проверка наличия repair_record
+            try:
+                repair = instance.repair_record
+                if repair.status == 'COMPLETED':
+                    if hasattr(instance, '_original_room') and instance._original_room:
+                        validated_data['room'] = instance._original_room
+                        del instance._original_room
+                        validated_data['location'] = instance.room.number if instance.room else None
+                elif repair.status == 'FAILED':
+                    validated_data['status'] = 'DISPOSED'
+                    validated_data['room'] = None
+                    validated_data['location'] = 'Утилизация'
+                    # Безопасная проверка наличия disposal_record
+                    try:
+                        disposal = instance.disposal_record
+                    except Disposal.DoesNotExist:
+                        Disposal.objects.create(
+                            equipment=instance,
+                            reason="Неудачный ремонт",
+                            notes="Оборудование не подлежит восстановлению после ремонта"
+                        )
+            except Repair.DoesNotExist:
+                # Если нет записи о ремонте, просто меняем статус
+                pass
+
+        # ДОБАВЛЯЕМ логику создания записей при изменении статуса
+        if new_status == 'NEEDS_REPAIR' and original_status != 'NEEDS_REPAIR':
+            # Создаем запись о ремонте если ее нет
+            try:
+                repair = instance.repair_record
+            except Repair.DoesNotExist:
+                Repair.objects.create(
+                    equipment=instance,
+                    notes="Запись создана при изменении статуса на 'Требуется ремонт'"
+                )
+
+        if new_status == 'DISPOSED' and original_status != 'DISPOSED':
+            # Создаем запись об утилизации если ее нет
+            try:
+                disposal = instance.disposal_record
+            except Disposal.DoesNotExist:
+                Disposal.objects.create(
+                    equipment=instance,
+                    reason="Переведено на утилизацию",
+                    notes="Запись создана при изменении статуса на 'Утилизировано'"
+                )
+
+
 
         # Обновление основных полей
         for attr, value in validated_data.items():
@@ -1118,15 +1164,28 @@ class EquipmentSerializer(serializers.ModelSerializer):
             if computer_specification_id:
                 try:
                     spec = ComputerSpecification.objects.get(id=computer_specification_id)
-                    computer_details_data = {
-                        'cpu': spec.cpu,
-                        'ram': spec.ram,
-                        'storage': spec.storage,
-                        'has_keyboard': spec.has_keyboard,
-                        'has_mouse': spec.has_mouse,
-                        'monitor_size': spec.monitor_size,
-                        'author': request.user if request and request.user.is_authenticated else None,
-                    }
+                    
+                    # Обновление дисков
+                    instance.disks.all().delete()
+                    for disk_spec in spec.disk_specifications.all():
+                        Disk.objects.create(
+                            equipment=instance,
+                            disk_type=disk_spec.disk_type,
+                            capacity_gb=disk_spec.capacity_gb,
+                            author=request.user if request and request.user.is_authenticated else None
+                        )
+                    
+                    # ОБНОВЛЕНИЕ ВИДЕОКАРТ (как диски)
+                    instance.gpus.all().delete()
+                    for gpu_spec in spec.gpu_specifications.all():
+                        GPU.objects.create(
+                            equipment=instance,
+                            model=gpu_spec.model,
+                            memory_gb=gpu_spec.memory_gb,
+                            memory_type=gpu_spec.memory_type,
+                            author=request.user if request and request.user.is_authenticated else None
+                        )
+                        
                 except ComputerSpecification.DoesNotExist:
                     pass  # Игнорируем несуществующие спецификации
             if computer_details_data:
@@ -1146,13 +1205,28 @@ class EquipmentSerializer(serializers.ModelSerializer):
             if notebook_specification_id:
                 try:
                     spec = NotebookSpecification.objects.get(id=notebook_specification_id)
-                    notebook_char_data = {
-                        'cpu': spec.cpu,
-                        'ram': spec.ram,
-                        'storage': spec.storage,
-                        'monitor_size': spec.monitor_size,
-                        'author': request.user if request and request.user.is_authenticated else None,
-                    }
+                    
+                    # Обновление дисков
+                    instance.disks.all().delete()
+                    for disk_spec in spec.disk_specifications.all():
+                        Disk.objects.create(
+                            equipment=instance,
+                            disk_type=disk_spec.disk_type,
+                            capacity_gb=disk_spec.capacity_gb,
+                            author=request.user if request and request.user.is_authenticated else None
+                        )
+                    
+                    # ОБНОВЛЕНИЕ ВИДЕОКАРТ
+                    instance.gpus.all().delete()
+                    for gpu_spec in spec.gpu_specifications.all():
+                        GPU.objects.create(
+                            equipment=instance,
+                            model=gpu_spec.model,
+                            memory_gb=gpu_spec.memory_gb,
+                            memory_type=gpu_spec.memory_type,
+                            author=request.user if request and request.user.is_authenticated else None
+                        )
+                        
                 except NotebookSpecification.DoesNotExist:
                     pass
             if notebook_char_data:
@@ -1172,15 +1246,28 @@ class EquipmentSerializer(serializers.ModelSerializer):
             if monoblok_specification_id:
                 try:
                     spec = MonoblokSpecification.objects.get(id=monoblok_specification_id)
-                    monoblok_char_data = {
-                        'cpu': spec.cpu,
-                        'ram': spec.ram,
-                        'storage': spec.storage,
-                        'has_keyboard': spec.has_keyboard,
-                        'has_mouse': spec.has_mouse,
-                        'monitor_size': spec.monitor_size,
-                        'author': request.user if request and request.user.is_authenticated else None,
-                    }
+                    
+                    # Обновление дисков
+                    instance.disks.all().delete()
+                    for disk_spec in spec.disk_specifications.all():
+                        Disk.objects.create(
+                            equipment=instance,
+                            disk_type=disk_spec.disk_type,
+                            capacity_gb=disk_spec.capacity_gb,
+                            author=request.user if request and request.user.is_authenticated else None
+                        )
+                    
+                    # ОБНОВЛЕНИЕ ВИДЕОКАРТ
+                    instance.gpus.all().delete()
+                    for gpu_spec in spec.gpu_specifications.all():
+                        GPU.objects.create(
+                            equipment=instance,
+                            model=gpu_spec.model,
+                            memory_gb=gpu_spec.memory_gb,
+                            memory_type=gpu_spec.memory_type,
+                            author=request.user if request and request.user.is_authenticated else None
+                        )
+                        
                 except MonoblokSpecification.DoesNotExist:
                     pass
             if monoblok_char_data:
@@ -1352,6 +1439,20 @@ class EquipmentSerializer(serializers.ModelSerializer):
                 instance.whiteboard_char.delete()
 
         return instance
+    
+    def get_repair_record(self, obj):
+        """Безопасное получение записи о ремонте"""
+        try:
+            return RepairSerializer(obj.repair_record).data
+        except Repair.DoesNotExist:
+            return None
+
+    def get_disposal_record(self, obj):
+        """Безопасное получение записи об утилизации"""
+        try:
+            return DisposalSerializer(obj.disposal_record).data
+        except Disposal.DoesNotExist:
+            return None
 
 
 class MovementHistorySerializer(serializers.ModelSerializer):
@@ -1722,8 +1823,16 @@ class BulkEquipmentSerializer(serializers.Serializer):
                             capacity_gb=disk_spec.capacity_gb,
                             author=author
                         )
+                    
+                    # СОЗДАЕМ ВИДЕОКАРТЫ ИЗ СПЕЦИФИКАЦИИ (ИСПРАВЛЕННЫЕ ПОЛЯ)
+                    for gpu_spec in computer_spec.gpu_specifications.all():
+                        GPU.objects.create(
+                            equipment=equipment,
+                            model=gpu_spec.model,
+                            author=author
+                        )
 
-            # Создание характеристик и дисков для ноутбуков
+            # ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ НОУТБУКОВ
             elif equipment_type_name == 'ноутбук' and notebook_char_data:
                 NotebookChar.objects.create(equipment=equipment, **notebook_char_data)
                 
@@ -1736,8 +1845,16 @@ class BulkEquipmentSerializer(serializers.Serializer):
                             capacity_gb=disk_spec.capacity_gb,
                             author=author
                         )
+                    
+                    # СОЗДАЕМ ВИДЕОКАРТЫ ИЗ СПЕЦИФИКАЦИИ
+                    for gpu_spec in notebook_spec.gpu_specifications.all():
+                        GPU.objects.create(
+                            equipment=equipment,
+                            model=gpu_spec.model,
+                            author=author
+                        )
 
-            # Создание характеристик и дисков для моноблоков
+            # ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ МОНОБЛОКОВ (БЫЛО ДУБЛИРОВАНИЕ НОУТБУКОВ!)
             elif equipment_type_name == 'моноблок' and monoblok_char_data:
                 MonoblokChar.objects.create(equipment=equipment, **monoblok_char_data)
                 
@@ -1750,6 +1867,14 @@ class BulkEquipmentSerializer(serializers.Serializer):
                             capacity_gb=disk_spec.capacity_gb,
                             author=author
                         )
+                    
+                    # СОЗДАЕМ ВИДЕОКАРТЫ ИЗ СПЕЦИФИКАЦИИ
+                    for gpu_spec in monoblok_spec.gpu_specifications.all():
+                        GPU.objects.create(
+                            equipment=equipment,
+                            model=gpu_spec.model,
+                            author=author
+                    )
 
             # Остальные типы оборудования...
             elif equipment_type_name == 'монитор' and monitor_char_data:  # Добавлено

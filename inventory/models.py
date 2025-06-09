@@ -166,25 +166,23 @@ class Equipment(models.Model):
 
 
 
-# 1. Модель для спецификации видеокарт (аналогично DiskSpecification)
+# 1. GPUSpecification - шаблоны видеокарт (аналогично DiskSpecification)
 class GPUSpecification(models.Model):
     computer_specification = models.ForeignKey('ComputerSpecification', on_delete=models.CASCADE, related_name='gpu_specifications', null=True, blank=True)
     notebook_specification = models.ForeignKey('NotebookSpecification', on_delete=models.CASCADE, related_name='gpu_specifications', null=True, blank=True)
     monoblok_specification = models.ForeignKey('MonoblokSpecification', on_delete=models.CASCADE, related_name='gpu_specifications', null=True, blank=True)
     
-    model = models.CharField(max_length=255, help_text="Модель видеокарты", verbose_name="Модель")
-    memory_gb = models.IntegerField(help_text="Объем видеопамяти в ГБ", verbose_name="Объем памяти (ГБ)")
-    memory_type = models.CharField(max_length=50, help_text="Тип памяти (GDDR5, GDDR6, etc.)", verbose_name="Тип памяти", blank=True)
-    
+    model = models.CharField(max_length=255, verbose_name="Модель видеокарты")
+
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='created_gpu_specs',
+        related_name='created_gpu_specifications',
         verbose_name="Автор"
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.model} {self.memory_gb}GB"
@@ -194,13 +192,11 @@ class GPUSpecification(models.Model):
         verbose_name_plural = "Спецификации видеокарт"
 
 
-# 2. Модель для конкретных видеокарт оборудования (аналогично Disk)
+# 2. GPU - реальные видеокарты оборудования (аналогично Disk)
 class GPU(models.Model):
     equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='gpus', verbose_name="Оборудование")
-    model = models.CharField(max_length=255, help_text="Модель видеокарты", verbose_name="Модель")
-    memory_gb = models.IntegerField(help_text="Объем видеопамяти в ГБ", verbose_name="Объем памяти (ГБ)")
-    memory_type = models.CharField(max_length=50, help_text="Тип памяти (GDDR5, GDDR6, etc.)", verbose_name="Тип памяти", blank=True)
-    
+    model = models.CharField(max_length=255, verbose_name="Модель видеокарты")
+
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -209,7 +205,7 @@ class GPU(models.Model):
         related_name='created_gpus',
         verbose_name="Автор"
     )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.model} {self.memory_gb}GB для {self.equipment.name}"
@@ -217,7 +213,6 @@ class GPU(models.Model):
     class Meta:
         verbose_name = "Видеокарта"
         verbose_name_plural = "Видеокарты"
-
 
 
 
@@ -240,6 +235,7 @@ class ComputerDetails(models.Model):
 class ComputerSpecification(models.Model):
     cpu = models.CharField(max_length=255, verbose_name="Процессор")
     ram = models.CharField(max_length=255, verbose_name="Оперативная память")
+    gpus = models.ManyToManyField('GPUSpecification', verbose_name="Видеокарты", blank=True)
     disks = models.ManyToManyField('DiskSpecification', verbose_name="Накопители", blank=True)
     has_keyboard = models.BooleanField(default=True, verbose_name="Есть ли клавиатура")
     has_mouse = models.BooleanField(default=True, verbose_name="Есть ли мышь")
@@ -548,6 +544,7 @@ class NotebookSpecification(models.Model):
     cpu = models.CharField(max_length=255, help_text="Процессор", verbose_name="Процессор")
     ram = models.CharField(max_length=255, help_text="Оперативная память", verbose_name="Оперативная память")
     disks = models.ManyToManyField('DiskSpecification', verbose_name="Накопители", blank=True)
+    gpus = models.ManyToManyField('GPUSpecification', verbose_name="Видеокарты", blank=True)
     monitor_size = models.CharField(max_length=50, blank=True, help_text="Размер монитора", verbose_name="Размер монитора")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -596,6 +593,7 @@ class MonoblokSpecification(models.Model):
     disks = models.ManyToManyField('DiskSpecification', verbose_name="Накопители", blank=True)
     has_keyboard = models.BooleanField(default=True, help_text="Есть ли клавиатура")
     has_mouse = models.BooleanField(default=True, help_text="Есть ли мышь")
+    gpus = models.ManyToManyField('GPUSpecification', verbose_name="Видеокарты", blank=True)
     monitor_size = models.CharField(max_length=50, blank=True, help_text="Размер монитора (если есть)", verbose_name="Размер монитора")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
